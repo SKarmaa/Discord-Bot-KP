@@ -6,7 +6,6 @@ import os
 import discord
 
 intents = discord.Intents.default()
-intents.message_content = True
 
 client = discord.Client(intents=intents)
 
@@ -21,8 +20,10 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    if message.content.startswith('$hello'):
-        await message.channel.send('Hello!')
+    # Note: Without message_content intent, we can't read message content
+    # Consider using slash commands instead for better functionality
+    if message.author.bot == False:
+        await message.channel.send('Hello! I can see you sent a message, but I need message content intent to read it.')
 
 
 try:
