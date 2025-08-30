@@ -35,7 +35,10 @@ def load_bot_data():
                 "samu_user_id": 783619741289414676,
                 "welcome_channel_id": 762775973816696863,
                 "samu_tag_reactions": ["🙈", "😊", "👋"],
-                "general_reactions": ["😂", "👍", "🤔", "😎", "🔥", "✨"]
+                "general_reactions": ["😂", "👍", "🤔", "😎", "🔥", "✨"],
+                "write_command_user_id": 235006682583793664,
+                "write_command_channel_id": 766247827528744971,
+                "general_channel_id": 762775973816696863
             }
         }
     except json.JSONDecodeError as e:
@@ -101,6 +104,108 @@ def get_welcome_message(user):
 
 
 # SLASH COMMANDS
+def process_mentions(message_text, guild):
+    """Convert @123456789 format to proper Discord mentions"""
+    import re
+
+    # Pattern to find @followed by digits (user IDs)
+    pattern = r'@(\d+)'
+
+    def replace_mention(match):
+        user_id = int(match.group(1))
+        member = guild.get_member(user_id)
+        if member:
+            return member.mention
+        else:
+            # If user not found in guild, still create the mention format
+            # Discord will show it as @invalid-user but it's better than leaving the ID
+            return f'<@{user_id}>'
+
+    # Replace all @userID with proper mentions
+    processed_message = re.sub(pattern, replace_mention, message_text)
+    return processed_message
+
+
+@bot.slash_command(
+    name="kpwrite",
+    description="Send a message to general chat (Authorized user only)")
+async def write_command(ctx, *, message: str):
+    """Slash command to send messages to general chat - restricted to specific user and channel"""
+
+    # Check if user is authorized
+    if ctx.author.id != CONFIG["write_command_user_id"]:
+        await ctx.respond(
+            "❌ **Access Denied:** You are not authorized to use this command.",
+            ephemeral=True)
+        print(
+            f"❌ Unauthorized /write attempt by {ctx.author} (ID: {ctx.author.id})"
+        )
+        return
+
+    # Check if command is used in the correct channel
+    if ctx.channel.id != CONFIG["write_command_channel_id"]:
+        await ctx.respond(
+            f"❌ **Wrong Channel:** This command can only be used in <#{CONFIG['write_command_channel_id']}>",
+            ephemeral=True)
+        print(
+            f"❌ /write command used in wrong channel by {ctx.author} (Channel: {ctx.channel.name})"
+        )
+        return
+
+    # Get the general channel (or fallback to welcome channel)
+    target_channel_id = CONFIG.get("general_channel_id",
+                                   CONFIG["welcome_channel_id"])
+    target_channel = bot.get_channel(target_channel_id)
+
+    # If configured channel not found, search for common general channel names
+    if not target_channel:
+        print(
+            f"Target channel {target_channel_id} not found, searching for general channels..."
+        )
+        for channel_name in ['💬╭﹕general', 'general', 'main', 'chat', 'lobby']:
+            target_channel = discord.utils.get(ctx.guild.text_channels,
+                                               name=channel_name)
+            if target_channel:
+                print(f"Found general channel: #{target_channel.name}")
+                break
+
+    if not target_channel:
+        await ctx.respond(
+            "❌ **Error:** Could not find the general chat channel.",
+            ephemeral=True)
+        print("❌ Could not find general chat channel")
+        return
+
+    # Process the message to convert @userID to proper mentions
+    processed_message = process_mentions(message, ctx.guild)
+
+    try:
+        # Send the processed message to general chat (anonymously)
+        sent_message = await target_channel.send(processed_message)
+
+        # Confirm to the user (privately) - minimal confirmation
+        await ctx.respond("✅ **Message sent**", ephemeral=True)
+
+        print(
+            f"✅ Anonymous message sent to #{target_channel.name}: {processed_message[:50]}{'...' if len(processed_message) > 50 else ''}"
+        )
+
+    except discord.Forbidden:
+        await ctx.respond(
+            f"❌ **Permission Error:** Bot doesn't have permission to send messages in {target_channel.mention}",
+            ephemeral=True)
+        print(f"❌ No permission to send message in #{target_channel.name}")
+
+    except discord.HTTPException as e:
+        await ctx.respond(f"❌ **Error:** Failed to send message: {str(e)}",
+                          ephemeral=True)
+        print(f"❌ HTTP error sending message: {e}")
+
+    except Exception as e:
+        await ctx.respond(f"❌ **Unexpected Error:** {str(e)}", ephemeral=True)
+        print(f"❌ Unexpected error in /write command: {e}")
+
+
 @bot.slash_command(name="date",
                    description="Get current date in Nepali and English")
 async def date_command(ctx):
@@ -241,6 +346,14 @@ async def on_ready():
     )
     print('🎉 Welcome feature is active and waiting for new members!')
 
+    # Print write command configuration
+    print(f'\n📝 Write Command Configuration:')
+    print(f'  - Authorized User ID: {CONFIG["write_command_user_id"]}')
+    print(f'  - Command Channel ID: {CONFIG["write_command_channel_id"]}')
+    print(
+        f'  - Target Channel ID: {CONFIG.get("general_channel_id", CONFIG["welcome_channel_id"])}'
+    )
+
     # Sync slash commands
     try:
         synced = await bot.sync_commands()
@@ -372,7 +485,7 @@ async def on_message(message):
         help_text = f"I'm a witty bot! I respond to these words: {', '.join(TRIGGER_WORDS)}\n"
         help_text += "Just use any of these words in your message and I'll drop some wisdom! 🧠✨\n"
         help_text += "**Text Commands:** !help, !words, !test-welcome, !debug-members, !force-welcome, !sync-commands, !reload-data\n"
-        help_text += "**Slash Commands:** /date, /ping, /server_info, /reload_data"
+        help_text += "**Slash Commands:** /date, /ping, /server_info, /reload_data, /write"
         await message.channel.send(help_text)
         return
 
@@ -441,6 +554,11 @@ async def on_message(message):
 • Welcome Messages: {len(WELCOME_MESSAGES)}
 • Config Settings: {len(CONFIG)}
 
+**Write Command Config:**
+• Authorized User ID: {CONFIG["write_command_user_id"]}
+• Command Channel ID: {CONFIG["write_command_channel_id"]}
+• Target Channel ID: {CONFIG.get("general_channel_id", CONFIG["welcome_channel_id"])}
+
 **Registered Slash Commands:**
 {slash_list}
 
@@ -463,6 +581,7 @@ async def on_message(message):
 • /date - Get current date/time
 • /ping - Test bot latency
 • /server_info - Server information
+• /write - Send message to general (authorized user only)
         """
         await message.channel.send(debug_info)
         return
