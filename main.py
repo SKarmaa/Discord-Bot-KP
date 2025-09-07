@@ -127,6 +127,232 @@ def process_mentions(message_text, guild):
 
 
 @bot.slash_command(
+    name="kpannounce",
+    description=
+    "Send an announcement with @everyone ping (Authorized user only)")
+async def announce_command(ctx, *, message: str):
+    """Slash command to send announcements with @everyone - restricted to specific user and channel"""
+
+    # Check if user is authorized
+    if ctx.author.id != CONFIG["write_command_user_id"]:
+        await ctx.respond(
+            "❌ **Access Denied:** You are not authorized to use this command.",
+            ephemeral=True)
+        print(
+            f"❌ Unauthorized /kpannounce attempt by {ctx.author} (ID: {ctx.author.id})"
+        )
+        return
+
+    # Check if command is used in the correct channel
+    if ctx.channel.id != CONFIG["write_command_channel_id"]:
+        await ctx.respond(
+            f"❌ **Wrong Channel:** This command can only be used in <#{CONFIG['write_command_channel_id']}>",
+            ephemeral=True)
+        print(
+            f"❌ /kpannounce command used in wrong channel by {ctx.author} (Channel: {ctx.channel.name})"
+        )
+        return
+
+    # Get the general channel (or fallback to welcome channel)
+    target_channel_id = CONFIG.get("general_channel_id",
+                                   CONFIG["welcome_channel_id"])
+    target_channel = bot.get_channel(target_channel_id)
+
+    # If configured channel not found, search for common general channel names
+    if not target_channel:
+        print(
+            f"Target channel {target_channel_id} not found, searching for general channels..."
+        )
+        for channel_name in ['💬╭﹕general', 'general', 'main', 'chat', 'lobby']:
+            target_channel = discord.utils.get(ctx.guild.text_channels,
+                                               name=channel_name)
+            if target_channel:
+                print(f"Found general channel: #{target_channel.name}")
+                break
+
+    if not target_channel:
+        await ctx.respond(
+            "❌ **Error:** Could not find the general chat channel.",
+            ephemeral=True)
+        print("❌ Could not find general chat channel")
+        return
+
+    # Process the message to convert @userID to proper mentions
+    processed_message = process_mentions(message, ctx.guild)
+
+    # Add @everyone to the beginning of the message
+    final_message = f"@everyone {processed_message}"
+
+    try:
+        # Send the announcement to general chat (anonymously)
+        sent_message = await target_channel.send(final_message)
+
+        # Confirm to the user (privately)
+        await ctx.respond("✅ **Announcement sent with @everyone ping**",
+                          ephemeral=True)
+
+        print(
+            f"✅ Anonymous announcement sent to #{target_channel.name}: {final_message[:50]}{'...' if len(final_message) > 50 else ''}"
+        )
+
+    except discord.Forbidden:
+        await ctx.respond(
+            f"❌ **Permission Error:** Bot doesn't have permission to send messages or mention @everyone in {target_channel.mention}",
+            ephemeral=True)
+        print(
+            f"❌ No permission to send message or mention @everyone in #{target_channel.name}"
+        )
+
+    except discord.HTTPException as e:
+        await ctx.respond(
+            f"❌ **Error:** Failed to send announcement: {str(e)}",
+            ephemeral=True)
+        print(f"❌ HTTP error sending announcement: {e}")
+
+    except Exception as e:
+        await ctx.respond(f"❌ **Unexpected Error:** {str(e)}", ephemeral=True)
+        print(f"❌ Unexpected error in /kpannounce command: {e}")
+
+
+# Add this new slash command for the one-time protest message
+
+# Add this new slash command for the one-time protest message
+
+# Add this new slash command for the protest message (splits into multiple parts)
+
+# Fixed version of the protest command that responds immediately
+
+
+@bot.slash_command(
+    name="kpprotest",
+    description="Send the protest message (One-time use - Authorized user only)"
+)
+async def protest_message_command(ctx):
+    """Slash command to send the specific protest message with proper formatting"""
+
+    # Check if user is authorized
+    if ctx.author.id != CONFIG["write_command_user_id"]:
+        await ctx.respond(
+            "❌ **Access Denied:** You are not authorized to use this command.",
+            ephemeral=True)
+        print(
+            f"❌ Unauthorized /kpprotest attempt by {ctx.author} (ID: {ctx.author.id})"
+        )
+        return
+
+    # Check if command is used in the correct channel
+    if ctx.channel.id != CONFIG["write_command_channel_id"]:
+        await ctx.respond(
+            f"❌ **Wrong Channel:** This command can only be used in <#{CONFIG['write_command_channel_id']}>",
+            ephemeral=True)
+        print(
+            f"❌ /kpprotest command used in wrong channel by {ctx.author} (Channel: {ctx.channel.name})"
+        )
+        return
+
+    # Get the general channel (or fallback to welcome channel)
+    target_channel_id = CONFIG.get("general_channel_id",
+                                   CONFIG["welcome_channel_id"])
+    target_channel = bot.get_channel(target_channel_id)
+
+    # If configured channel not found, search for common general channel names
+    if not target_channel:
+        print(
+            f"Target channel {target_channel_id} not found, searching for general channels..."
+        )
+        for channel_name in ['💬╭﹕general', 'general', 'main', 'chat', 'lobby']:
+            target_channel = discord.utils.get(ctx.guild.text_channels,
+                                               name=channel_name)
+            if target_channel:
+                print(f"Found general channel: #{target_channel.name}")
+                break
+
+    if not target_channel:
+        await ctx.respond(
+            "❌ **Error:** Could not find the general chat channel.",
+            ephemeral=True)
+        print("❌ Could not find general chat channel")
+        return
+
+    # RESPOND IMMEDIATELY to avoid timeout
+    await ctx.respond("🚀 **Sending protest message in multiple parts...**",
+                      ephemeral=True)
+
+    # Split the protest message into parts to avoid Discord's 2000 character limit
+    protest_parts = [
+        """@everyone Friends,
+
+Take a step back and carefully think about the protest you are organizing against the government. While your enthusiasm and courage are admirable, protests are not something you can carry out in a short burst of optimism.
+
+History has shown the dangers of rushing into such movements without proper preparation. Take example the recent protest led by a prominent political figure, Durga Parsai. It failed to achieve its goals. Instead, it resulted in chaos, injuries, and tragic loss of lives. If someone with experience, resources, and influence could not succeed, you must recognize the risks of moving forward unprepared.""",
+        """You are challenging a deeply settled system. Such movements require:
+
+- Grassroots organizations or advocacy groups to guide and protect participants.
+- Funds to sustain protests and care for people involved.
+- A clear, detailed agenda with realistic and actionable demands. Vague slogans like "stop corruption" or "bring change" may sound powerful but carry no weight in negotiations. The system only responds when demands are concrete, achievable, and tied to policies or reforms. Without this, protests lose focus and direction.
+- Credible, respected leaders and advocates who can step up in moments of crisis, who the public will trust, and who know what they are doing.""",
+        """This last point about leadership cannot be overstated. Credible advocates make all the difference. They bring legitimacy and knowledge. They understand how the executive and legislative bodies work, how policies are drafted, how decisions are made, and how to push pressure points effectively. They know how to speak to the media, how to negotiate when needed, and how to rally support from other influential circles like lawyers, journalists, or even sympathetic politicians.""",
+        """Without such figures, protests often turn into loud street gatherings with no real impact. With them, however, a movement gains structure, strategy, and recognition. People listen when respected voices speak, and governments are far more cautious when they know credible advocates are involved. They can translate raw energy into actionable demands and protect protesters legally, socially, and politically.""",
+        """Without these, any protest you attempt might not only fail but also backfire. The government has already started to feel pressure from the younger generation. But if you go into this recklessly, an unsuccessful protest will only prove to them, and to the whole country, that this generation is immature and not to be taken seriously. It will take away hope from your generation instead of inspiring it.
+
+Real change takes time. It requires patience, organization, credibility, a proper agenda, and respected figures who can guide the movement through the complexities of the system. If you truly want to challenge the system, you must build a strong foundation first, not rush into actions that will only harm your cause.
+
+Take this seriously. Think before acting."""
+    ]
+
+    try:
+        # Send each part of the protest message with a small delay
+        import asyncio
+
+        for i, part in enumerate(protest_parts):
+            await target_channel.send(part)
+            if i < len(
+                    protest_parts) - 1:  # Don't delay after the last message
+                await asyncio.sleep(1)  # 1 second delay between messages
+
+        # Send follow-up message to confirm completion
+        try:
+            await ctx.followup.send(
+                f"✅ **Protest message sent successfully in {len(protest_parts)} parts!**",
+                ephemeral=True)
+        except:
+            # If followup fails, just log it
+            print(
+                f"✅ Protest message sent in {len(protest_parts)} parts to #{target_channel.name} by {ctx.author}"
+            )
+
+        print(
+            f"✅ Protest message sent in {len(protest_parts)} parts to #{target_channel.name} by {ctx.author}"
+        )
+
+    except discord.Forbidden:
+        try:
+            await ctx.followup.send(
+                f"❌ **Permission Error:** Bot doesn't have permission to send messages in {target_channel.mention}",
+                ephemeral=True)
+        except:
+            pass
+        print(f"❌ No permission to send message in #{target_channel.name}")
+
+    except discord.HTTPException as e:
+        try:
+            await ctx.followup.send(
+                f"❌ **Error:** Failed to send message: {str(e)}",
+                ephemeral=True)
+        except:
+            pass
+        print(f"❌ HTTP error sending protest message: {e}")
+
+    except Exception as e:
+        try:
+            await ctx.followup.send(f"❌ **Unexpected Error:** {str(e)}",
+                                    ephemeral=True)
+        except:
+            pass
+        print(f"❌ Unexpected error in /kpprotest command: {e}")
+
+
+@bot.slash_command(
     name="kpwrite",
     description="Send a message to general chat (Authorized user only)")
 async def write_command(ctx, *, message: str):
